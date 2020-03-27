@@ -1,11 +1,19 @@
 import express from "express";
-import { Request, Response } from "express";
-import * as dotenv from "dotenv";
+import dotenv from "dotenv";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import routes from "./routes"; 
+import mongoose from "mongoose";
+import routes from "./routes";
 
 dotenv.config();
+
+mongoose
+  .connect(<string>process.env.DATABASE_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
+  .then(() => console.log("MongoDB connection successful!"))
+  .catch(err => console.error(err));
 
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -15,12 +23,8 @@ const limiter = rateLimit({
 });
 
 app.use(cors());
-app.use(limiter)
+app.use(limiter);
 app.use("/api", routes);
-
-// app.get("/", (req: Request, res: Response) => {
-//   res.send("HELLO WORLD");
-// });
 
 app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);

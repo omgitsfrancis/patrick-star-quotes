@@ -1,63 +1,65 @@
 import express from "express";
 import { Request, Response } from "express";
 import Fuse from "fuse.js";
-import quotes from "../quotes.json";
+import { Quote } from "../models";
 
 const router = express.Router();
 
-var fuse = new Fuse(quotes, {
-  threshold: 0.5,
-  distance: 500,
-  includeScore: true,
-  keys: ["quote"]
-});
+// fuse module search options
+var fuse = (arr: Object[]) =>
+  new Fuse(arr, {
+    threshold: 0.5,
+    distance: 500,
+    keys: ["quote"]
+  });
 
-function getRandomInt(max: number): number {
-  return Math.floor(Math.random() * Math.floor(max));
-}
-
-// get all quotes
+// Get all quotes
 router.get("/all", (req: Request, res: Response) => {
-  res.send(quotes.map(i => i.quote));
+  Quote.find({})
+    .then(quotes => res.send(quotes))
+    .catch(err => res.status(400).send(err));
 });
 
 // Get random quote(s)
 router.get("/random", (req: Request, res: Response) => {
-  var count = parseInt(req.query.count);
-  var randomIndex = getRandomInt(quotes.length);
+  const count = parseInt(req.query.count);
 
-  // count is empty or not a number
+  const sendNRandomQuotes = (n: Number, isList: Boolean = true) => {
+    Quote.aggregate([{ $sample: { size: n } }])
+      .then(quotes => res.send(isList ? quotes : quotes[0]))
+      .catch(err => res.status(400).send(err));
+  };
+
+  // count is empty or not a number - defaults to 1
   if (!req.query.count) {
-    res.send(quotes[randomIndex].quote);
+    sendNRandomQuotes(1, false);
     return;
-  // count is out of range
+    // count is out of range
   } else if (count <= 0 || count > 10 || isNaN(count)) {
     res.status(400).send("Count must be number 1 - 10");
     return;
-  // count is in range
+    // count is in range
   } else {
-    var randomIndexes: number[] = [];
-    for (var i = 0; i < count; i++) {
-      while (randomIndexes.indexOf(randomIndex) != -1) {
-        randomIndex = getRandomInt(quotes.length);
-      }
-      randomIndexes.push(randomIndex);
-    }
-
-    res.send(randomIndexes.map(i => quotes[i].quote));
+    sendNRandomQuotes(count);
+    return;
   }
 });
 
-// Search quotes and return list of results
+// Get list quotes w/ search term
 router.get("/search", (req: Request, res: Response) => {
   var q = req.query.q;
 
-  if(q === undefined) {
-    res.status(400).send('Missing query parameter')
+  if (q === undefined) {
+    res.status(400).send("Missing query parameter");
     return;
-  } 
-
-  res.send(fuse.search(req.query.q).map(i => i.item.quote));
+  }
+  Quote.find({}).then(quotes => {
+    res.send(
+      fuse(quotes)
+        .search(q)
+        .map(i => i.item)
+    );
+  });
 });
 
 export default router;
