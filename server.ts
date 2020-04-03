@@ -26,6 +26,10 @@ app.use(cors());
 app.use(limiter);
 app.use("/api", routes);
 
+app.get('/', (req, res) => {
+  res.send("We're not cavemen we have technology. API is up and running!")
+})
+
 app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);
 });
